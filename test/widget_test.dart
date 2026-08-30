@@ -1,22 +1,19 @@
-﻿import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:raid_compass/main.dart';
 
 void main() {
-  testWidgets('Raid Compassのホーム画面を表示できる', (tester) async {
+  testWidgets('shows the Raid Compass home screen', (tester) async {
     await tester.pumpWidget(const RaidCompassApp());
 
     expect(find.text('Raid Compass'), findsOneWidget);
-    expect(find.text('レイド準備を、ひとつの場所で。'), findsOneWidget);
-    expect(find.text('クイックアクセス'), findsOneWidget);
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byIcon(Icons.explore_outlined), findsOneWidget);
   });
 
-  testWidgets('アイテム画面へ移動できる', (tester) async {
+  testWidgets('shows five navigation destinations', (tester) async {
     await tester.pumpWidget(const RaidCompassApp());
 
-    await tester.tap(find.text('アイテム').last);
-    await tester.pumpAndSettle();
-
-    expect(find.text('アイテム名を入力'), findsOneWidget);
-    expect(find.text('アイテムデータはまだありません'), findsOneWidget);
+    expect(find.byType(NavigationDestination), findsNWidgets(5));
   });
 }

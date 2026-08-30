@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:raid_compass/features/items/items_page.dart';
 
 void main() {
   runApp(const RaidCompassApp());
@@ -13,14 +14,15 @@ class RaidCompassApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: accentColor,
-      brightness: Brightness.dark,
-    ).copyWith(
-      primary: accentColor,
-      surface: surfaceColor,
-      error: const Color(0xFFB85C57),
-    );
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: accentColor,
+          brightness: Brightness.dark,
+        ).copyWith(
+          primary: accentColor,
+          surface: surfaceColor,
+          error: const Color(0xFFB85C57),
+        );
 
     return MaterialApp(
       title: 'Raid Compass',
@@ -44,9 +46,7 @@ class RaidCompassApp extends StatelessWidget {
             final selected = states.contains(WidgetState.selected);
 
             return TextStyle(
-              color: selected
-                  ? accentColor
-                  : const Color(0xFFA8A598),
+              color: selected ? accentColor : const Color(0xFFA8A598),
               fontSize: 12,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             );
@@ -78,13 +78,7 @@ class RaidCompassShell extends StatefulWidget {
 class _RaidCompassShellState extends State<RaidCompassShell> {
   int _currentIndex = 0;
 
-  static const _titles = [
-    'Raid Compass',
-    'アイテム',
-    'タスク',
-    '弾薬',
-    '設定',
-  ];
+  static const _titles = ['Raid Compass', 'アイテム', 'タスク', '弾薬', '設定'];
 
   void _selectPage(int index) {
     setState(() {
@@ -120,16 +114,11 @@ class _RaidCompassShellState extends State<RaidCompassShell> {
           if (_currentIndex == 0)
             const Padding(
               padding: EdgeInsets.only(right: 16),
-              child: Center(
-                child: _StatusBadge(),
-              ),
+              child: Center(child: _StatusBadge()),
             ),
         ],
       ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: pages,
-      ),
+      body: IndexedStack(index: _currentIndex, children: pages),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: _selectPage,
@@ -166,10 +155,7 @@ class _RaidCompassShellState extends State<RaidCompassShell> {
 }
 
 class HomePage extends StatelessWidget {
-  const HomePage({
-    required this.onNavigate,
-    super.key,
-  });
+  const HomePage({required this.onNavigate, super.key});
 
   final ValueChanged<int> onNavigate;
 
@@ -238,10 +224,7 @@ class _WelcomeCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [
-            Color(0xFF292A20),
-            Color(0xFF1B201A),
-          ],
+          colors: [Color(0xFF292A20), Color(0xFF1B201A)],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
@@ -251,11 +234,7 @@ class _WelcomeCard extends StatelessWidget {
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.explore_outlined,
-            color: Color(0xFFB7A56A),
-            size: 34,
-          ),
+          Icon(Icons.explore_outlined, color: Color(0xFFB7A56A), size: 34),
           SizedBox(height: 16),
           Text(
             'READY FOR RAID',
@@ -278,10 +257,7 @@ class _WelcomeCard extends StatelessWidget {
           SizedBox(height: 8),
           Text(
             'アイテム、タスク、弾薬、ハイドアウトの情報を管理する個人用コンパニオンです。',
-            style: TextStyle(
-              color: Color(0xFFA8A598),
-              height: 1.5,
-            ),
+            style: TextStyle(color: Color(0xFFA8A598), height: 1.5),
           ),
         ],
       ),
@@ -308,10 +284,7 @@ class _ProgressCard extends StatelessWidget {
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
-              Text(
-                '0 / 0',
-                style: TextStyle(color: Color(0xFFB7A56A)),
-              ),
+              Text('0 / 0', style: TextStyle(color: Color(0xFFB7A56A))),
             ],
           ),
           SizedBox(height: 14),
@@ -325,10 +298,7 @@ class _ProgressCard extends StatelessWidget {
           SizedBox(height: 12),
           Text(
             'タスクデータはまだ取得されていません。',
-            style: TextStyle(
-              color: Color(0xFFA8A598),
-              fontSize: 13,
-            ),
+            style: TextStyle(color: Color(0xFFA8A598), fontSize: 13),
           ),
         ],
       ),
@@ -362,11 +332,7 @@ class _QuickActionCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                icon,
-                color: const Color(0xFFB7A56A),
-                size: 28,
-              ),
+              Icon(icon, color: const Color(0xFFB7A56A), size: 28),
               const Spacer(),
               Text(
                 title,
@@ -378,10 +344,7 @@ class _QuickActionCard extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 subtitle,
-                style: const TextStyle(
-                  color: Color(0xFFA8A598),
-                  fontSize: 12,
-                ),
+                style: const TextStyle(color: Color(0xFFA8A598), fontSize: 12),
               ),
             ],
           ),
@@ -403,87 +366,24 @@ class _DataStatusCard extends StatelessWidget {
         children: [
           CircleAvatar(
             backgroundColor: Color(0xFF30352D),
-            child: Icon(
-              Icons.cloud_off_outlined,
-              color: Color(0xFFA8A598),
-            ),
+            child: Icon(Icons.cloud_off_outlined, color: Color(0xFFA8A598)),
           ),
           SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'ローカルモード',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
+                Text('ローカルモード', style: TextStyle(fontWeight: FontWeight.w700)),
                 SizedBox(height: 3),
                 Text(
                   '次の段階でTarkov.dev APIを接続します',
-                  style: TextStyle(
-                    color: Color(0xFFA8A598),
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Color(0xFFA8A598), fontSize: 12),
                 ),
               ],
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class ItemsPage extends StatefulWidget {
-  const ItemsPage({super.key});
-
-  @override
-  State<ItemsPage> createState() => _ItemsPageState();
-}
-
-class _ItemsPageState extends State<ItemsPage> {
-  String _query = '';
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-      children: [
-        TextField(
-          onChanged: (value) {
-            setState(() {
-              _query = value.trim();
-            });
-          },
-          decoration: const InputDecoration(
-            prefixIcon: Icon(Icons.search),
-            hintText: 'アイテム名を入力',
-          ),
-        ),
-        const SizedBox(height: 24),
-        Icon(
-          _query.isEmpty ? Icons.inventory_2_outlined : Icons.search_off,
-          size: 56,
-          color: const Color(0xFF6F7069),
-        ),
-        const SizedBox(height: 14),
-        Text(
-          _query.isEmpty
-              ? 'アイテムデータはまだありません'
-              : '「$_query」のデータはまだありません',
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Color(0xFFE8E4D8),
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          '次の実装でAPIからアイテムと価格を取得します。',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Color(0xFFA8A598)),
-        ),
-      ],
     );
   }
 }
@@ -508,27 +408,17 @@ class FeaturePage extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 64,
-              color: const Color(0xFFB7A56A),
-            ),
+            Icon(icon, size: 64, color: const Color(0xFFB7A56A)),
             const SizedBox(height: 18),
             Text(
               title,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-              ),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 10),
             Text(
               description,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Color(0xFFA8A598),
-                height: 1.5,
-              ),
+              style: const TextStyle(color: Color(0xFFA8A598), height: 1.5),
             ),
             const SizedBox(height: 18),
             const Chip(label: Text('近日実装')),
@@ -574,11 +464,7 @@ class SettingsPage extends StatelessWidget {
         const Text(
           '本アプリは非公式の個人利用ツールです。'
           'Battlestate Gamesおよび各攻略サイトとは関係ありません。',
-          style: TextStyle(
-            color: Color(0xFF858279),
-            fontSize: 12,
-            height: 1.5,
-          ),
+          style: TextStyle(color: Color(0xFF858279), fontSize: 12, height: 1.5),
         ),
       ],
     );
@@ -601,10 +487,7 @@ class _SettingsTile extends StatelessWidget {
     return Container(
       decoration: _cardDecoration(),
       child: ListTile(
-        leading: Icon(
-          icon,
-          color: const Color(0xFFB7A56A),
-        ),
+        leading: Icon(icon, color: const Color(0xFFB7A56A)),
         title: Text(title),
         subtitle: Text(
           subtitle,
@@ -639,10 +522,7 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0xFF30352D),
         borderRadius: BorderRadius.circular(20),
@@ -650,11 +530,7 @@ class _StatusBadge extends StatelessWidget {
       child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.circle,
-            color: Color(0xFF7A9E65),
-            size: 8,
-          ),
+          Icon(Icons.circle, color: Color(0xFF7A9E65), size: 8),
           SizedBox(width: 6),
           Text(
             'LOCAL',
