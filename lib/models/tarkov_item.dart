@@ -58,7 +58,7 @@ class TarkovItem {
     return validOffers.first;
   }
 
-  bool matches(String query) {
+  bool matches(String query, {Iterable<String> customAliases = const []}) {
     final searchTerms = _createSearchTerms(query);
 
     if (searchTerms.isEmpty) {
@@ -70,6 +70,7 @@ class TarkovItem {
       englishName,
       shortName,
       normalizedName,
+      ...customAliases,
     ].map(_normalizeSearchText).where((value) => value.isNotEmpty);
 
     return searchTerms.any(
@@ -146,10 +147,24 @@ Set<String> _createSearchTerms(String query) {
   }
 
   final terms = <String>{normalizedQuery};
-  final aliases = _itemSearchAliases[normalizedQuery];
 
-  if (aliases != null) {
-    terms.addAll(aliases.map(_normalizeSearchText));
+  for (final entry in _itemSearchAliases.entries) {
+    final normalizedKey = _normalizeSearchText(entry.key);
+    final normalizedAliases = entry.value
+        .map(_normalizeSearchText)
+        .where((value) => value.isNotEmpty)
+        .toSet();
+
+    final belongsToGroup =
+        normalizedKey == normalizedQuery ||
+        normalizedAliases.contains(normalizedQuery);
+
+    if (!belongsToGroup) {
+      continue;
+    }
+
+    terms.add(normalizedKey);
+    terms.addAll(normalizedAliases);
   }
 
   return terms;

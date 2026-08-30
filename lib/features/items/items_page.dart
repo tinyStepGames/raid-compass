@@ -152,6 +152,23 @@ class _ItemsPageState extends State<ItemsPage> {
     );
   }
 
+  Future<void> _manageAliases(TarkovItem item) async {
+    final changed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return _AliasManagerDialog(api: _api, item: item);
+      },
+    );
+
+    if (!mounted || changed != true) {
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('通称を保存しました。')));
+  }
+
   void _showDetails(TarkovItem item) {
     showModalBottomSheet<void>(
       context: context,
@@ -205,11 +222,197 @@ class _ItemsPageState extends State<ItemsPage> {
                   label: '最高売却価格',
                   value: _formatPrice(bestOffer?.priceRoubles),
                 ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _manageAliases(item),
+                    icon: const Icon(Icons.edit_note),
+                    label: const Text('短縮名・通称を管理'),
+                  ),
+                ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+}
+
+class _AliasManagerDialog extends StatefulWidget {
+  const _AliasManagerDialog({required this.api, required this.item});
+
+  final TarkovApi api;
+  final TarkovItem item;
+
+  @override
+  State<_AliasManagerDialog> createState() => _AliasManagerDialogState();
+}
+
+class _AliasManagerDialogState extends State<_AliasManagerDialog> {
+  final TextEditingController _controller = TextEditingController();
+
+  List<String> _aliases = const [];
+  bool _isLoading = true;
+  bool _isSaving = false;
+  bool _changed = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAliases();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadAliases() async {
+    final aliases = await widget.api.aliasesFor(widget.item.id);
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _aliases = aliases;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _addAlias() async {
+    final alias = _controller.text.trim();
+
+    if (alias.isEmpty) {
+      setState(() {
+        _errorMessage = '登録する短縮名または通称を入力してください。';
+      });
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+      _errorMessage = null;
+    });
+
+    await widget.api.addAlias(widget.item.id, alias);
+
+    if (!mounted) {
+      return;
+    }
+
+    _controller.clear();
+    _changed = true;
+
+    final aliases = await widget.api.aliasesFor(widget.item.id);
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _aliases = aliases;
+      _isSaving = false;
+    });
+  }
+
+  Future<void> _removeAlias(String alias) async {
+    setState(() {
+      _isSaving = true;
+      _errorMessage = null;
+    });
+
+    await widget.api.removeAlias(widget.item.id, alias);
+
+    if (!mounted) {
+      return;
+    }
+
+    _changed = true;
+
+    final aliases = await widget.api.aliasesFor(widget.item.id);
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _aliases = aliases;
+      _isSaving = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('短縮名・通称を管理'),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.item.name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Color(0xFFA8A598)),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              enabled: !_isSaving,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _addAlias(),
+              decoration: InputDecoration(
+                labelText: '新しい通称',
+                hintText: '例：グラボ',
+                errorText: _errorMessage,
+                suffixIcon: IconButton(
+                  tooltip: '追加',
+                  onPressed: _isSaving ? null : _addAlias,
+                  icon: const Icon(Icons.add),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text('登録済み', style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 10),
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else if (_aliases.isEmpty)
+              const Text(
+                '登録された通称はありません。',
+                style: TextStyle(color: Color(0xFFA8A598)),
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final alias in _aliases)
+                    InputChip(
+                      label: Text(alias),
+                      onDeleted: _isSaving ? null : () => _removeAlias(alias),
+                    ),
+                ],
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.of(context).pop(_changed);
+          },
+          child: const Text('閉じる'),
+        ),
+      ],
     );
   }
 }
