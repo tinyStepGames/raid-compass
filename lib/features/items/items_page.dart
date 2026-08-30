@@ -117,7 +117,7 @@ class _ItemsPageState extends State<ItemsPage> {
             CircularProgressIndicator(),
             SizedBox(height: 16),
             Text(
-              'Tarkov.devから取得中...',
+              'ローカルデータを読み込み中...',
               style: TextStyle(color: Color(0xFFA8A598)),
             ),
           ],

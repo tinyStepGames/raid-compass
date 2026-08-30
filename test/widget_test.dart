@@ -3,17 +3,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:raid_compass/main.dart';
 
 void main() {
-  testWidgets('shows the Raid Compass home screen', (tester) async {
+  testWidgets('home screen is displayed', (tester) async {
     await tester.pumpWidget(const RaidCompassApp());
 
     expect(find.text('Raid Compass'), findsOneWidget);
-    expect(find.byType(NavigationBar), findsOneWidget);
-    expect(find.byIcon(Icons.explore_outlined), findsOneWidget);
+    expect(find.text('レイド準備を、ひとつの場所で。'), findsOneWidget);
+    expect(find.text('クイックアクセス'), findsOneWidget);
   });
 
-  testWidgets('shows five navigation destinations', (tester) async {
+  testWidgets('items page can be opened', (tester) async {
     await tester.pumpWidget(const RaidCompassApp());
 
-    expect(find.byType(NavigationDestination), findsNWidgets(5));
+    await tester.tap(find.text('アイテム').last);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.text('例：LEDX、Salewa、M4A1'), findsOneWidget);
   });
 }

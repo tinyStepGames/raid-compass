@@ -2,7 +2,9 @@ class TarkovItem {
   const TarkovItem({
     required this.id,
     required this.name,
+    required this.englishName,
     required this.shortName,
+    required this.normalizedName,
     required this.basePrice,
     required this.width,
     required this.height,
@@ -14,7 +16,9 @@ class TarkovItem {
 
   final String id;
   final String name;
+  final String englishName;
   final String shortName;
+  final String normalizedName;
   final int basePrice;
   final int width;
   final int height;
@@ -39,10 +43,6 @@ class TarkovItem {
   }
 
   SellOffer? get bestSellOffer {
-    if (sellOffers.isEmpty) {
-      return null;
-    }
-
     final validOffers = sellOffers
         .where((offer) => offer.priceRoubles > 0)
         .toList();
@@ -58,19 +58,40 @@ class TarkovItem {
     return validOffers.first;
   }
 
+  bool matches(String query) {
+    final searchTerms = _createSearchTerms(query);
+
+    if (searchTerms.isEmpty) {
+      return false;
+    }
+
+    final candidates = [
+      name,
+      englishName,
+      shortName,
+      normalizedName,
+    ].map(_normalizeSearchText).where((value) => value.isNotEmpty);
+
+    return searchTerms.any(
+      (term) => candidates.any((candidate) => candidate.contains(term)),
+    );
+  }
+
   factory TarkovItem.fromJson(Map<String, dynamic> json) {
     final rawOffers = json['sellFor'];
 
     return TarkovItem(
       id: json['id'] as String? ?? '',
-      name: json['name'] as String? ?? '蜷咲ｧｰ荳肴・',
+      name: json['name'] as String? ?? '名称不明',
+      englishName: json['englishName'] as String? ?? '',
       shortName: json['shortName'] as String? ?? '',
+      normalizedName: json['normalizedName'] as String? ?? '',
       basePrice: _toInt(json['basePrice']) ?? 0,
       width: _toInt(json['width']) ?? 1,
       height: _toInt(json['height']) ?? 1,
       average24hPrice: _toInt(json['avg24hPrice']),
-      iconLink: json['iconLink'] as String?,
-      wikiLink: json['wikiLink'] as String?,
+      iconLink: _nullableString(json['iconLink']),
+      wikiLink: _nullableString(json['wikiLink']),
       sellOffers: rawOffers is List
           ? rawOffers
                 .whereType<Map<String, dynamic>>()
@@ -95,17 +116,57 @@ class SellOffer {
   final String currency;
 
   factory SellOffer.fromJson(Map<String, dynamic> json) {
-    final vendor = json['vendor'];
-
     return SellOffer(
-      vendorName: vendor is Map<String, dynamic>
-          ? vendor['name'] as String? ?? '荳肴・'
-          : '荳肴・',
+      vendorName: json['vendorName'] as String? ?? '不明',
       price: _toInt(json['price']) ?? 0,
       priceRoubles: _toInt(json['priceRUB']) ?? _toInt(json['price']) ?? 0,
       currency: json['currency'] as String? ?? 'RUB',
     );
   }
+}
+
+const Map<String, List<String>> _itemSearchAliases = {
+  'サレワ': ['salewa'],
+  'サリワ': ['salewa'],
+  'グラボ': ['graphics card', 'グラフィックボード', 'gpu'],
+  'gpu': ['graphics card', 'グラフィックボード'],
+  'ガスアナ': ['gas analyzer', 'ガスアナライザー'],
+  'フラドラ': ['secure flash drive', 'flash drive'],
+  'テトリス': ['tetriz'],
+  'ムンシャ': ['fierce hatchling moonshine', 'moonshine'],
+  'インテリ': ['folder with intelligence', 'intelligence'],
+  '注射器': ['medical bloodset', 'disposable syringe'],
+};
+
+Set<String> _createSearchTerms(String query) {
+  final normalizedQuery = _normalizeSearchText(query);
+
+  if (normalizedQuery.isEmpty) {
+    return const {};
+  }
+
+  final terms = <String>{normalizedQuery};
+  final aliases = _itemSearchAliases[normalizedQuery];
+
+  if (aliases != null) {
+    terms.addAll(aliases.map(_normalizeSearchText));
+  }
+
+  return terms;
+}
+
+String _normalizeSearchText(String value) {
+  return value.trim().toLowerCase().replaceAll(RegExp(r'[\s　_\-/・]+'), '');
+}
+
+String? _nullableString(Object? value) {
+  final text = value?.toString();
+
+  if (text == null || text.isEmpty) {
+    return null;
+  }
+
+  return text;
 }
 
 int? _toInt(Object? value) {

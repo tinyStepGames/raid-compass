@@ -1,153 +1,76 @@
-import 'dart:async';
 import 'dart:convert';
 
-import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:raid_compass/models/tarkov_item.dart';
 
 class TarkovApi {
-  TarkovApi({http.Client? client}) : _client = client ?? http.Client();
-
-  static final Uri _endpoint = Uri.parse('https://api.tarkov.dev/graphql');
-
-  final http.Client _client;
-
-  static const String _searchItemsQuery = r'''
-    query SearchItems($name: String!) {
-      items(
-        name: $name
-        lang: ja
-        gameMode: regular
-        limit: 50
-      ) {
-        id
-        name
-        shortName
-        basePrice
-        avg24hPrice
-        width
-        height
-        iconLink
-        wikiLink
-        sellFor {
-          price
-          priceRUB
-          currency
-          vendor {
-            name
-          }
-        }
-      }
-    }
-  ''';
+  List<TarkovItem>? _cachedItems;
 
   Future<List<TarkovItem>> searchItems(String searchText) async {
-    final normalizedSearchText = searchText.trim();
+    final query = searchText.trim();
 
-    if (normalizedSearchText.isEmpty) {
+    if (query.isEmpty) {
       return const [];
     }
 
+    final items = await _loadItems();
+
+    final results = items.where((item) => item.matches(query)).toList()
+      ..sort((first, second) {
+        final firstPrice = first.average24hPrice ?? 0;
+        final secondPrice = second.average24hPrice ?? 0;
+
+        return secondPrice.compareTo(firstPrice);
+      });
+
+    return results.length > 100
+        ? results.take(100).toList(growable: false)
+        : results;
+  }
+
+  Future<List<TarkovItem>> _loadItems() async {
+    final cachedItems = _cachedItems;
+
+    if (cachedItems != null) {
+      return cachedItems;
+    }
+
     try {
-      final response = await _client
-          .post(
-            _endpoint,
-            headers: const {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-            body: jsonEncode({
-              'query': _searchItemsQuery,
-              'variables': {'name': normalizedSearchText},
-            }),
-          )
-          .timeout(const Duration(seconds: 20));
+      final source = await rootBundle.loadString('assets/data/items.json');
 
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw TarkovApiException(
-          'サーバーエラーが発生しました。',
-          details: 'HTTP ${response.statusCode}',
-        );
-      }
-
-      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      final decoded = jsonDecode(source);
 
       if (decoded is! Map<String, dynamic>) {
-        throw const TarkovApiException('APIから不正なデータが返されました。');
+        throw const FormatException('Invalid root object.');
       }
 
-      final errors = decoded['errors'];
+      final rawItems = decoded['items'];
 
-      if (errors is List && errors.isNotEmpty) {
-        final firstError = errors.first;
-        final message = firstError is Map<String, dynamic>
-            ? firstError['message']?.toString()
-            : firstError.toString();
-
-        throw TarkovApiException('アイテムデータを取得できませんでした。', details: message);
+      if (rawItems is! List) {
+        throw const FormatException('Items list is missing.');
       }
 
-      final data = decoded['data'];
-
-      if (data is! Map<String, dynamic>) {
-        throw const TarkovApiException('APIレスポンスにdataがありません。');
-      }
-
-      final rawItems = _extractItems(data['items']);
-
-      return rawItems
+      final items = rawItems
           .whereType<Map<String, dynamic>>()
           .map(TarkovItem.fromJson)
-          .toList();
-    } on TimeoutException {
-      throw const TarkovApiException(
-        '通信がタイムアウトしました。',
-        details: 'インターネット接続を確認して再試行してください。',
-      );
-    } on http.ClientException catch (error) {
+          .where((item) => item.id.isNotEmpty)
+          .toList(growable: false);
+
+      _cachedItems = items;
+
+      return items;
+    } on FlutterError catch (error) {
       throw TarkovApiException(
-        'Tarkov.devへ接続できませんでした。',
+        'ローカルアイテムデータを読み込めませんでした。',
         details: error.message,
       );
-    } on FormatException {
-      throw const TarkovApiException('APIレスポンスを読み取れませんでした。');
+    } on FormatException catch (error) {
+      throw TarkovApiException('ローカルアイテムデータが破損しています。', details: error.message);
     }
   }
 
-  List<dynamic> _extractItems(Object? value) {
-    if (value is List) {
-      return value;
-    }
-
-    // API側でConnection形式になった場合にも対応します。
-    if (value is Map<String, dynamic>) {
-      final nodes = value['nodes'];
-
-      if (nodes is List) {
-        return nodes;
-      }
-
-      final items = value['items'];
-
-      if (items is List) {
-        return items;
-      }
-
-      final edges = value['edges'];
-
-      if (edges is List) {
-        return edges
-            .whereType<Map<String, dynamic>>()
-            .map((edge) => edge['node'])
-            .toList();
-      }
-    }
-
-    return const [];
-  }
-
-  void close() {
-    _client.close();
-  }
+  void close() {}
 }
 
 class TarkovApiException implements Exception {
