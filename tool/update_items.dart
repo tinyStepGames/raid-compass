@@ -178,6 +178,8 @@ Future<void> main() async {
         'width': integerValue(item['width'], 1),
         'height': integerValue(item['height'], 1),
         'iconLink': item['iconLink']?.toString(),
+        'gridImageLink': item['gridImageLink']?.toString(),
+        'image512pxLink': item['image512pxLink']?.toString(),
         'wikiLink': item['wikiLink']?.toString(),
         'sellFor': sellFor,
       });
