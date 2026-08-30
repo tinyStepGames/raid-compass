@@ -1,3 +1,5 @@
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:raid_compass/data/tarkov_api.dart';
 import 'package:raid_compass/models/tarkov_item.dart';
@@ -525,16 +527,51 @@ class _ItemImage extends StatelessWidget {
       ),
       child: url == null || url.isEmpty
           ? const Icon(Icons.inventory_2_outlined, color: Color(0xFF6F7069))
-          : Image.network(
-              url,
-              fit: BoxFit.contain,
-              errorBuilder: (_, _, _) {
-                return const Icon(
-                  Icons.broken_image_outlined,
-                  color: Color(0xFF6F7069),
-                );
-              },
-            ),
+          : _buildNetworkImage(url),
+    );
+  }
+
+  Widget _buildNetworkImage(String url) {
+    if (kIsWeb) {
+      return Image.network(
+        url,
+        fit: BoxFit.contain,
+        webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) {
+            return child;
+          }
+
+          return const Padding(
+            padding: EdgeInsets.all(12),
+            child: CircularProgressIndicator(strokeWidth: 2),
+          );
+        },
+        errorBuilder: (_, _, _) {
+          return const Icon(
+            Icons.broken_image_outlined,
+            color: Color(0xFF6F7069),
+          );
+        },
+      );
+    }
+
+    return CachedNetworkImage(
+      imageUrl: url,
+      fit: BoxFit.contain,
+      fadeInDuration: const Duration(milliseconds: 180),
+      placeholder: (_, _) {
+        return const Padding(
+          padding: EdgeInsets.all(12),
+          child: CircularProgressIndicator(strokeWidth: 2),
+        );
+      },
+      errorWidget: (_, _, _) {
+        return const Icon(
+          Icons.broken_image_outlined,
+          color: Color(0xFF6F7069),
+        );
+      },
     );
   }
 }
