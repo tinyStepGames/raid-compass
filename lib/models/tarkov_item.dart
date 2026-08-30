@@ -10,6 +10,8 @@ class TarkovItem {
     required this.height,
     required this.average24hPrice,
     required this.iconLink,
+    this.gridImageLink,
+    this.image512pxLink,
     required this.wikiLink,
     required this.sellOffers,
   });
@@ -24,6 +26,8 @@ class TarkovItem {
   final int height;
   final int? average24hPrice;
   final String? iconLink;
+  final String? gridImageLink;
+  final String? image512pxLink;
   final String? wikiLink;
   final List<SellOffer> sellOffers;
 
@@ -92,6 +96,8 @@ class TarkovItem {
       height: _toInt(json['height']) ?? 1,
       average24hPrice: _toInt(json['avg24hPrice']),
       iconLink: _nullableString(json['iconLink']),
+      gridImageLink: _nullableString(json['gridImageLink']),
+      image512pxLink: _nullableString(json['image512pxLink']),
       wikiLink: _nullableString(json['wikiLink']),
       sellOffers: rawOffers is List
           ? rawOffers

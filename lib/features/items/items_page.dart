@@ -187,7 +187,15 @@ class _ItemsPageState extends State<ItemsPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Center(child: _ItemImage(imageUrl: item.iconLink, size: 92)),
+                Center(
+                  child: _ItemImage(
+                    imageUrl:
+                        item.image512pxLink ??
+                        item.gridImageLink ??
+                        item.iconLink,
+                    size: 140,
+                  ),
+                ),
                 const SizedBox(height: 16),
                 Text(
                   item.name,
