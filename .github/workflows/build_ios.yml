@@ -1,18 +1,7 @@
-name: Build iOS IPA
+﻿name: Build iOS IPA
 
 on:
   workflow_dispatch:
-
-  push:
-    branches:
-      - main
-    paths:
-      - "lib/**"
-      - "ios/**"
-      - "assets/**"
-      - "pubspec.yaml"
-      - "pubspec.lock"
-      - ".github/workflows/build_ios.yml"
 
 permissions:
   contents: read
