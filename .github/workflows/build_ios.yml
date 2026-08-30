@@ -1,0 +1,64 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - main
+    paths:
+      - "lib/**"
+      - "ios/**"
+      - "assets/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - ".github/workflows/build_ios.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-ios:
+    name: Build unsigned iOS IPA
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Show Flutter version
+        run: flutter --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run analyzer
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build unsigned iOS application
+        run: flutter build ios --release --no-codesign
+
+      - name: Create unsigned IPA
+        run: |
+          rm -rf Payload
+          mkdir Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/Runner.app
+          zip -r RaidCompass-unsigned.ipa Payload
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RaidCompass-iOS
+          path: RaidCompass-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 30
