@@ -148,23 +148,25 @@ Set<String> _createSearchTerms(String query) {
 
   final terms = <String>{normalizedQuery};
 
+  // Expand built-in aliases by partial match from two characters.
+  final canExpandPartialAlias = normalizedQuery.runes.length >= 2;
+
   for (final entry in _itemSearchAliases.entries) {
-    final normalizedKey = _normalizeSearchText(entry.key);
-    final normalizedAliases = entry.value
-        .map(_normalizeSearchText)
-        .where((value) => value.isNotEmpty)
-        .toSet();
+    final groupTerms = <String>{
+      _normalizeSearchText(entry.key),
+      ...entry.value
+          .map(_normalizeSearchText)
+          .where((value) => value.isNotEmpty),
+    };
 
     final belongsToGroup =
-        normalizedKey == normalizedQuery ||
-        normalizedAliases.contains(normalizedQuery);
+        groupTerms.contains(normalizedQuery) ||
+        (canExpandPartialAlias &&
+            groupTerms.any((value) => value.contains(normalizedQuery)));
 
-    if (!belongsToGroup) {
-      continue;
+    if (belongsToGroup) {
+      terms.addAll(groupTerms);
     }
-
-    terms.add(normalizedKey);
-    terms.addAll(normalizedAliases);
   }
 
   return terms;
