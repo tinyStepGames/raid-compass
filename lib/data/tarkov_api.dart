@@ -3,19 +3,23 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:raid_compass/data/item_alias_store.dart';
+import 'package:raid_compass/data/item_favorite_store.dart';
 import 'package:raid_compass/models/tarkov_item.dart';
 import 'package:raid_compass/models/tarkov_item_category.dart';
 
 class TarkovApi {
-  TarkovApi({ItemAliasStore? aliasStore})
-    : _aliasStore = aliasStore ?? ItemAliasStore();
+  TarkovApi({ItemAliasStore? aliasStore, ItemFavoriteStore? favoriteStore})
+    : _aliasStore = aliasStore ?? ItemAliasStore(),
+      _favoriteStore = favoriteStore ?? ItemFavoriteStore();
 
   final ItemAliasStore _aliasStore;
+  final ItemFavoriteStore _favoriteStore;
 
   Map<String, dynamic>? _cachedDatabase;
   List<TarkovItem>? _cachedItems;
   List<TarkovItemCategory>? _cachedHandbookCategories;
   Map<String, List<String>>? _cachedAliases;
+  Set<String>? _cachedFavoriteItemIds;
 
   Future<List<TarkovItem>> searchItems(String searchText) async {
     final query = searchText.trim();
@@ -105,6 +109,46 @@ class TarkovApi {
     });
 
     return List.unmodifiable(results);
+  }
+
+  Future<Set<String>> favoriteItemIds() async {
+    final cachedIds = _cachedFavoriteItemIds;
+
+    if (cachedIds != null) {
+      return Set.unmodifiable(cachedIds);
+    }
+
+    final itemIds = await _favoriteStore.loadAll();
+    _cachedFavoriteItemIds = Set<String>.of(itemIds);
+
+    return Set.unmodifiable(itemIds);
+  }
+
+  Future<List<TarkovItem>> getFavoriteItems() async {
+    final favoriteIds = await favoriteItemIds();
+
+    if (favoriteIds.isEmpty) {
+      return const [];
+    }
+
+    final items = await _loadItems();
+
+    final favoriteItems = items
+        .where((item) => favoriteIds.contains(item.id))
+        .toList();
+
+    favoriteItems.sort((first, second) {
+      return first.name.toLowerCase().compareTo(second.name.toLowerCase());
+    });
+
+    return List.unmodifiable(favoriteItems);
+  }
+
+  Future<void> setItemFavorite(String itemId, {required bool favorite}) async {
+    await _favoriteStore.setFavorite(itemId, favorite: favorite);
+
+    final itemIds = await _favoriteStore.loadAll();
+    _cachedFavoriteItemIds = Set<String>.of(itemIds);
   }
 
   Future<List<String>> aliasesFor(String itemId) async {

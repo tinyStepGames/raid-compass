@@ -40,11 +40,15 @@ class _ItemsPageState extends State<ItemsPage> {
   bool _hasSearched = false;
   String? _errorMessage;
   _ItemSortOrder _sortOrder = _ItemSortOrder.name;
+  Set<String> _favoriteItemIds = <String>{};
+  bool _isLoadingFavorites = true;
+  bool _showingFavorites = false;
 
   @override
   void initState() {
     super.initState();
     _loadCategories();
+    _loadFavorites();
   }
 
   @override
@@ -87,10 +91,124 @@ class _ItemsPageState extends State<ItemsPage> {
     }
   }
 
+  Future<void> _loadFavorites() async {
+    try {
+      final itemIds = await _api.favoriteItemIds();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _favoriteItemIds = itemIds;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingFavorites = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _showFavorites() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+
+    setState(() {
+      _showingFavorites = true;
+      _selectedCategory = null;
+      _selectedCategoryGroupId = null;
+      _isLoading = true;
+      _hasSearched = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final items = await _api.getFavoriteItems();
+      final itemIds = await _api.favoriteItemIds();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _items = items;
+        _favoriteItemIds = itemIds;
+      });
+    } on TarkovApiException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _items = const [];
+        _errorMessage = error.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _closeFavorites() {
+    setState(() {
+      _showingFavorites = false;
+      _selectedCategory = null;
+      _selectedCategoryGroupId = null;
+      _items = const [];
+      _hasSearched = false;
+      _isLoading = false;
+      _errorMessage = null;
+    });
+  }
+
+  Future<void> _toggleFavorite(TarkovItem item) async {
+    final wasFavorite = _favoriteItemIds.contains(item.id);
+    final shouldBeFavorite = !wasFavorite;
+
+    try {
+      await _api.setItemFavorite(item.id, favorite: shouldBeFavorite);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        final updatedIds = Set<String>.of(_favoriteItemIds);
+
+        if (shouldBeFavorite) {
+          updatedIds.add(item.id);
+        } else {
+          updatedIds.remove(item.id);
+        }
+
+        _favoriteItemIds = updatedIds;
+
+        if (_showingFavorites && !shouldBeFavorite) {
+          _items = _items
+              .where((favoriteItem) => favoriteItem.id != item.id)
+              .toList(growable: false);
+        }
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('お気に入りを更新できませんでした: $error')));
+    }
+  }
+
   Future<void> _selectCategory(TarkovItemCategory category) async {
     FocusManager.instance.primaryFocus?.unfocus();
 
     setState(() {
+      _showingFavorites = false;
       _selectedCategory = category;
       _isLoading = true;
       _hasSearched = true;
@@ -146,6 +264,7 @@ class _ItemsPageState extends State<ItemsPage> {
 
   void _showCategoryGroups() {
     setState(() {
+      _showingFavorites = false;
       _selectedCategoryGroupId = null;
       _selectedCategory = null;
       _items = const [];
@@ -169,6 +288,7 @@ class _ItemsPageState extends State<ItemsPage> {
     setState(() {
       _selectedCategory = null;
       _selectedCategoryGroupId = null;
+      _showingFavorites = false;
       _isLoading = true;
       _hasSearched = true;
       _errorMessage = null;
@@ -262,6 +382,38 @@ class _ItemsPageState extends State<ItemsPage> {
               ],
             ),
           ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+          child: Row(
+            children: [
+              Tooltip(
+                message: 'お気に入り一覧',
+                child: FilledButton.tonalIcon(
+                  onPressed: _isLoadingFavorites
+                      ? null
+                      : (_showingFavorites ? _closeFavorites : _showFavorites),
+                  icon: Icon(
+                    _showingFavorites ? Icons.arrow_back : Icons.star_border,
+                    size: 19,
+                  ),
+                  label: Text(
+                    _showingFavorites
+                        ? 'カテゴリ一覧へ戻る'
+                        : 'お気に入り（${_favoriteItemIds.length}）',
+                  ),
+                ),
+              ),
+              if (_showingFavorites) ...[
+                const SizedBox(width: 8),
+                IconButton(
+                  tooltip: 'お気に入り一覧を閉じる',
+                  onPressed: _closeFavorites,
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ],
+          ),
+        ),
         if (_hasSearched && !_isLoading && _items.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
@@ -373,6 +525,31 @@ class _ItemsPageState extends State<ItemsPage> {
     }
 
     if (_items.isEmpty) {
+      if (_showingFavorites) {
+        return const Center(
+          child: Padding(
+            padding: EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.star_border, size: 56, color: Color(0xFFA8A598)),
+                SizedBox(height: 12),
+                Text(
+                  'お気に入りはまだありません',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'アイテムカードの☆を押すと登録できます。',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Color(0xFFA8A598)),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
       return const _EmptyState();
     }
 
@@ -388,10 +565,35 @@ class _ItemsPageState extends State<ItemsPage> {
           final item = sortedItems[index];
           final category = _categoryForItem(item);
 
-          return _ItemCard(
-            item: item,
-            category: category,
-            onTap: () => _showDetails(item),
+          final isFavorite = _favoriteItemIds.contains(item.id);
+
+          return Stack(
+            children: [
+              _ItemCard(
+                item: item,
+                category: category,
+                onTap: () => _showDetails(item),
+              ),
+              Positioned(
+                top: 5,
+                right: 5,
+                child: Material(
+                  color: const Color(0xDD151A16),
+                  borderRadius: BorderRadius.circular(20),
+                  child: IconButton(
+                    tooltip: isFavorite ? 'お気に入りから削除' : 'お気に入りへ追加',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => _toggleFavorite(item),
+                    icon: Icon(
+                      isFavorite ? Icons.star : Icons.star_border,
+                      color: isFavorite
+                          ? const Color(0xFFC7B778)
+                          : const Color(0xFFA8A598),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           );
         },
       ),
