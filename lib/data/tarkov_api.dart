@@ -49,6 +49,43 @@ class TarkovApi {
         : results;
   }
 
+  Future<List<TarkovItem>> getAmmoItems() async {
+    final items = await _loadItems();
+
+    final ammoItems = items.where((item) => item.ammo != null).toList();
+
+    ammoItems.sort((first, second) {
+      final firstAmmo = first.ammo!;
+      final secondAmmo = second.ammo!;
+
+      final caliberComparison = (firstAmmo.caliber ?? '').compareTo(
+        secondAmmo.caliber ?? '',
+      );
+
+      if (caliberComparison != 0) {
+        return caliberComparison;
+      }
+
+      final penetrationComparison = secondAmmo.penetrationPower.compareTo(
+        firstAmmo.penetrationPower,
+      );
+
+      if (penetrationComparison != 0) {
+        return penetrationComparison;
+      }
+
+      final damageComparison = secondAmmo.damage.compareTo(firstAmmo.damage);
+
+      if (damageComparison != 0) {
+        return damageComparison;
+      }
+
+      return first.name.toLowerCase().compareTo(second.name.toLowerCase());
+    });
+
+    return List.unmodifiable(ammoItems);
+  }
+
   Future<List<TarkovItemCategory>> getHandbookCategories() async {
     final cachedCategories = _cachedHandbookCategories;
 

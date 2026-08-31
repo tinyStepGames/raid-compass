@@ -16,6 +16,7 @@ class TarkovItem {
     this.gridImageLink,
     this.image512pxLink,
     required this.wikiLink,
+    this.ammo,
     required this.sellOffers,
   });
 
@@ -35,7 +36,10 @@ class TarkovItem {
   final String? gridImageLink;
   final String? image512pxLink;
   final String? wikiLink;
+  final TarkovAmmoProperties? ammo;
   final List<SellOffer> sellOffers;
+
+  bool get isAmmo => ammo != null;
 
   int get slotCount {
     final slots = width * height;
@@ -90,6 +94,7 @@ class TarkovItem {
 
   factory TarkovItem.fromJson(Map<String, dynamic> json) {
     final rawOffers = json['sellFor'];
+    final rawAmmo = json['ammo'];
 
     return TarkovItem(
       id: json['id'] as String? ?? '',
@@ -108,12 +113,93 @@ class TarkovItem {
       gridImageLink: _nullableString(json['gridImageLink']),
       image512pxLink: _nullableString(json['image512pxLink']),
       wikiLink: _nullableString(json['wikiLink']),
+      ammo: rawAmmo is Map
+          ? TarkovAmmoProperties.fromJson(
+              rawAmmo.map((key, value) => MapEntry(key.toString(), value)),
+            )
+          : null,
       sellOffers: rawOffers is List
           ? rawOffers
                 .whereType<Map<String, dynamic>>()
                 .map(SellOffer.fromJson)
                 .toList()
           : const [],
+    );
+  }
+}
+
+class TarkovAmmoProperties {
+  const TarkovAmmoProperties({
+    required this.caliber,
+    required this.stackMaxSize,
+    required this.tracer,
+    required this.tracerColor,
+    required this.ammoType,
+    required this.projectileCount,
+    required this.damage,
+    required this.armorDamage,
+    required this.fragmentationChance,
+    required this.ricochetChance,
+    required this.penetrationChance,
+    required this.penetrationPower,
+    required this.penetrationPowerDeviation,
+    required this.accuracyModifier,
+    required this.recoilModifier,
+    required this.initialSpeed,
+    required this.lightBleedModifier,
+    required this.heavyBleedModifier,
+    required this.durabilityBurnFactor,
+    required this.heatFactor,
+    required this.staminaBurnPerDamage,
+  });
+
+  final String? caliber;
+  final int stackMaxSize;
+  final bool tracer;
+  final String? tracerColor;
+  final String? ammoType;
+  final int projectileCount;
+  final int damage;
+  final int armorDamage;
+  final double? fragmentationChance;
+  final double? ricochetChance;
+  final double? penetrationChance;
+  final int penetrationPower;
+  final double? penetrationPowerDeviation;
+  final double? accuracyModifier;
+  final double? recoilModifier;
+  final double? initialSpeed;
+  final double? lightBleedModifier;
+  final double? heavyBleedModifier;
+  final double? durabilityBurnFactor;
+  final double? heatFactor;
+  final double? staminaBurnPerDamage;
+
+  bool get hasBallisticData => damage > 0 || penetrationPower > 0;
+
+  factory TarkovAmmoProperties.fromJson(Map<String, dynamic> json) {
+    return TarkovAmmoProperties(
+      caliber: _nullableString(json['caliber']),
+      stackMaxSize: _toInt(json['stackMaxSize']) ?? 0,
+      tracer: _toBool(json['tracer']),
+      tracerColor: _nullableString(json['tracerColor']),
+      ammoType: _nullableString(json['ammoType']),
+      projectileCount: _toInt(json['projectileCount']) ?? 1,
+      damage: _toInt(json['damage']) ?? 0,
+      armorDamage: _toInt(json['armorDamage']) ?? 0,
+      fragmentationChance: _toDouble(json['fragmentationChance']),
+      ricochetChance: _toDouble(json['ricochetChance']),
+      penetrationChance: _toDouble(json['penetrationChance']),
+      penetrationPower: _toInt(json['penetrationPower']) ?? 0,
+      penetrationPowerDeviation: _toDouble(json['penetrationPowerDeviation']),
+      accuracyModifier: _toDouble(json['accuracyModifier']),
+      recoilModifier: _toDouble(json['recoilModifier']),
+      initialSpeed: _toDouble(json['initialSpeed']),
+      lightBleedModifier: _toDouble(json['lightBleedModifier']),
+      heavyBleedModifier: _toDouble(json['heavyBleedModifier']),
+      durabilityBurnFactor: _toDouble(json['durabilityBurnFactor']),
+      heatFactor: _toDouble(json['heatFactor']),
+      staminaBurnPerDamage: _toDouble(json['staminaBurnPerDamage']),
     );
   }
 }
@@ -210,6 +296,24 @@ String? _nullableString(Object? value) {
   }
 
   return text;
+}
+
+double? _toDouble(Object? value) {
+  return switch (value) {
+    int number => number.toDouble(),
+    double number => number,
+    String text => double.tryParse(text),
+    _ => null,
+  };
+}
+
+bool _toBool(Object? value) {
+  return switch (value) {
+    bool state => state,
+    int number => number != 0,
+    String text => text.toLowerCase() == 'true' || text == '1',
+    _ => false,
+  };
 }
 
 int? _toInt(Object? value) {
