@@ -21,6 +21,7 @@ class _ItemsPageState extends State<ItemsPage> {
   List<TarkovItem> _items = const [];
   List<TarkovItemCategory> _categories = const [];
   TarkovItemCategory? _selectedCategory;
+  String? _selectedCategoryGroupId;
 
   bool _isLoadingCategories = true;
   String? _categoryErrorMessage;
@@ -112,8 +113,28 @@ class _ItemsPageState extends State<ItemsPage> {
     }
   }
 
+  void _selectCategoryGroup(String groupId) {
+    setState(() {
+      _selectedCategoryGroupId = groupId;
+      _selectedCategory = null;
+      _items = const [];
+      _hasSearched = false;
+      _errorMessage = null;
+    });
+  }
+
   void _showCategories() {
     setState(() {
+      _selectedCategory = null;
+      _items = const [];
+      _hasSearched = false;
+      _errorMessage = null;
+    });
+  }
+
+  void _showCategoryGroups() {
+    setState(() {
+      _selectedCategoryGroupId = null;
       _selectedCategory = null;
       _items = const [];
       _hasSearched = false;
@@ -135,6 +156,7 @@ class _ItemsPageState extends State<ItemsPage> {
 
     setState(() {
       _selectedCategory = null;
+      _selectedCategoryGroupId = null;
       _isLoading = true;
       _hasSearched = true;
       _errorMessage = null;
@@ -199,20 +221,27 @@ class _ItemsPageState extends State<ItemsPage> {
             ),
           ),
         ),
-        if (_selectedCategory case final category?)
+        if (_selectedCategory != null || _selectedCategoryGroupId != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
             child: Row(
               children: [
                 IconButton(
-                  tooltip: 'カテゴリ一覧へ戻る',
-                  onPressed: _showCategories,
+                  tooltip: _selectedCategory != null
+                      ? 'サブカテゴリ一覧へ戻る'
+                      : '親カテゴリ一覧へ戻る',
+                  onPressed: _selectedCategory != null
+                      ? _showCategories
+                      : _showCategoryGroups,
                   icon: const Icon(Icons.arrow_back),
                 ),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    '${category.displayName}（${category.itemCount}件）',
+                    _selectedCategory != null
+                        ? '${_selectedCategory!.displayName}'
+                              '（${_selectedCategory!.itemCount}件）'
+                        : itemCategoryGroupName(_selectedCategoryGroupId!),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontWeight: FontWeight.w700),
@@ -258,6 +287,8 @@ class _ItemsPageState extends State<ItemsPage> {
 
       return ItemCategoryBrowser(
         categories: _categories,
+        selectedGroupId: _selectedCategoryGroupId,
+        onGroupSelected: _selectCategoryGroup,
         onSelected: _selectCategory,
       );
     }
