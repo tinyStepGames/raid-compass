@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:raid_compass/data/tarkov_api.dart';
+import 'package:raid_compass/features/items/ammo_page.dart';
 import 'package:raid_compass/features/items/item_category_browser.dart';
 import 'package:raid_compass/models/tarkov_item.dart';
 import 'package:raid_compass/models/tarkov_item_category.dart';
@@ -205,6 +206,31 @@ class _ItemsPageState extends State<ItemsPage> {
   }
 
   Future<void> _selectCategory(TarkovItemCategory category) async {
+    if (category.normalizedName == 'rounds') {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (context) => AmmoPage(
+            api: _api,
+            onFavoritesChanged: (itemIds) {
+              if (!mounted) {
+                return;
+              }
+
+              setState(() {
+                _favoriteItemIds = itemIds;
+              });
+            },
+          ),
+        ),
+      );
+
+      if (mounted) {
+        await _loadFavorites();
+      }
+
+      return;
+    }
+
     FocusManager.instance.primaryFocus?.unfocus();
 
     setState(() {
@@ -244,6 +270,26 @@ class _ItemsPageState extends State<ItemsPage> {
   }
 
   void _selectCategoryGroup(String groupId) {
+    if (groupId == 'ammo') {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (context) => AmmoPage(
+            api: _api,
+            onFavoritesChanged: (itemIds) {
+              if (!mounted) {
+                return;
+              }
+
+              setState(() {
+                _favoriteItemIds = itemIds;
+              });
+            },
+          ),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _selectedCategoryGroupId = groupId;
       _selectedCategory = null;

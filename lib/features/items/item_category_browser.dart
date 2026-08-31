@@ -46,7 +46,7 @@ const Map<String, String> _groupNames = {
 const Map<String, IconData> _groupIcons = {
   'weapons': Icons.gps_fixed,
   'weapon-parts': Icons.build_outlined,
-  'ammo': Icons.inventory_2_outlined,
+  'ammo': Icons.adjust,
   'gear': Icons.shield_outlined,
   'medical': Icons.medical_services_outlined,
   'provisions': Icons.restaurant_outlined,
