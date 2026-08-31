@@ -15,7 +15,8 @@ void main() {
     await tester.pumpWidget(const RaidCompassApp());
 
     await tester.tap(find.text('アイテム').last);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.byType(TextField), findsOneWidget);
     expect(find.text('例：LEDX、Salewa、M4A1'), findsOneWidget);

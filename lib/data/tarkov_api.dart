@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:raid_compass/data/item_alias_store.dart';
 import 'package:raid_compass/models/tarkov_item.dart';
+import 'package:raid_compass/models/tarkov_item_category.dart';
 
 class TarkovApi {
   TarkovApi({ItemAliasStore? aliasStore})
@@ -11,7 +12,9 @@ class TarkovApi {
 
   final ItemAliasStore _aliasStore;
 
+  Map<String, dynamic>? _cachedDatabase;
   List<TarkovItem>? _cachedItems;
+  List<TarkovItemCategory>? _cachedHandbookCategories;
   Map<String, List<String>>? _cachedAliases;
 
   Future<List<TarkovItem>> searchItems(String searchText) async {
@@ -40,6 +43,68 @@ class TarkovApi {
     return results.length > 100
         ? results.take(100).toList(growable: false)
         : results;
+  }
+
+  Future<List<TarkovItemCategory>> getHandbookCategories() async {
+    final cachedCategories = _cachedHandbookCategories;
+
+    if (cachedCategories != null) {
+      return cachedCategories;
+    }
+
+    final database = await _loadDatabase();
+    final items = await _loadItems();
+    final rawCategories = database['handbookCategories'];
+
+    if (rawCategories is! List) {
+      throw const TarkovApiException('ローカルカテゴリデータが見つかりません。');
+    }
+
+    final counts = <String, int>{};
+
+    for (final item in items) {
+      for (final categoryId in item.handbookCategoryIds) {
+        counts.update(categoryId, (value) => value + 1, ifAbsent: () => 1);
+      }
+    }
+
+    final categories = rawCategories
+        .whereType<Map<String, dynamic>>()
+        .map(TarkovItemCategory.fromJson)
+        .where((category) => category.id.isNotEmpty)
+        .map((category) => category.copyWithItemCount(counts[category.id] ?? 0))
+        .where((category) => category.itemCount > 0)
+        .toList();
+
+    categories.sort((first, second) {
+      return first.displayName.toLowerCase().compareTo(
+        second.displayName.toLowerCase(),
+      );
+    });
+
+    _cachedHandbookCategories = List.unmodifiable(categories);
+
+    return _cachedHandbookCategories!;
+  }
+
+  Future<List<TarkovItem>> getItemsForHandbookCategory(
+    String categoryId,
+  ) async {
+    if (categoryId.trim().isEmpty) {
+      return const [];
+    }
+
+    final items = await _loadItems();
+
+    final results = items
+        .where((item) => item.handbookCategoryIds.contains(categoryId))
+        .toList();
+
+    results.sort((first, second) {
+      return first.name.toLowerCase().compareTo(second.name.toLowerCase());
+    });
+
+    return List.unmodifiable(results);
   }
 
   Future<List<String>> aliasesFor(String itemId) async {
@@ -71,11 +136,11 @@ class TarkovApi {
     return aliases;
   }
 
-  Future<List<TarkovItem>> _loadItems() async {
-    final cachedItems = _cachedItems;
+  Future<Map<String, dynamic>> _loadDatabase() async {
+    final cachedDatabase = _cachedDatabase;
 
-    if (cachedItems != null) {
-      return cachedItems;
+    if (cachedDatabase != null) {
+      return cachedDatabase;
     }
 
     try {
@@ -87,21 +152,9 @@ class TarkovApi {
         throw const FormatException('Invalid root object.');
       }
 
-      final rawItems = decoded['items'];
+      _cachedDatabase = decoded;
 
-      if (rawItems is! List) {
-        throw const FormatException('Items list is missing.');
-      }
-
-      final items = rawItems
-          .whereType<Map<String, dynamic>>()
-          .map(TarkovItem.fromJson)
-          .where((item) => item.id.isNotEmpty)
-          .toList(growable: false);
-
-      _cachedItems = items;
-
-      return items;
+      return decoded;
     } on FlutterError catch (error) {
       throw TarkovApiException(
         'ローカルアイテムデータを読み込めませんでした。',
@@ -110,6 +163,31 @@ class TarkovApi {
     } on FormatException catch (error) {
       throw TarkovApiException('ローカルアイテムデータが破損しています。', details: error.message);
     }
+  }
+
+  Future<List<TarkovItem>> _loadItems() async {
+    final cachedItems = _cachedItems;
+
+    if (cachedItems != null) {
+      return cachedItems;
+    }
+
+    final database = await _loadDatabase();
+    final rawItems = database['items'];
+
+    if (rawItems is! List) {
+      throw const TarkovApiException('ローカルアイテム一覧が見つかりません。');
+    }
+
+    final items = rawItems
+        .whereType<Map<String, dynamic>>()
+        .map(TarkovItem.fromJson)
+        .where((item) => item.id.isNotEmpty)
+        .toList(growable: false);
+
+    _cachedItems = items;
+
+    return items;
   }
 
   void close() {}

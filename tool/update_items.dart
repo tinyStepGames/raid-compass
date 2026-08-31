@@ -84,6 +84,71 @@ Map<String, dynamic>? bestSellOffer(Object? value) {
   return best;
 }
 
+List<String> stringList(Object? value) {
+  if (value is! List) {
+    return const [];
+  }
+
+  return value
+      .map((entry) => entry.toString())
+      .where((entry) => entry.isNotEmpty)
+      .toList(growable: false);
+}
+
+List<Map<String, dynamic>> buildCategoryOutput(
+  Object? source,
+  Map<String, dynamic> japanese,
+  Map<String, dynamic> english,
+) {
+  if (source is! Map) {
+    return const [];
+  }
+
+  final output = <Map<String, dynamic>>[];
+
+  for (final entry in source.entries) {
+    if (entry.value is! Map) {
+      continue;
+    }
+
+    final category = (entry.value as Map).map(
+      (key, value) => MapEntry(key.toString(), value),
+    );
+
+    final id = category['id']?.toString() ?? entry.key.toString();
+    final normalizedName = category['normalizedName']?.toString() ?? id;
+
+    final englishName = translatedName(
+      english,
+      category['name'],
+      normalizedName,
+    );
+
+    final japaneseName = translatedName(
+      japanese,
+      category['name'],
+      englishName,
+    );
+
+    output.add({
+      'id': id,
+      'name': japaneseName,
+      'englishName': englishName,
+      'normalizedName': normalizedName,
+      'imageLink': category['imageLink']?.toString(),
+    });
+  }
+
+  output.sort((first, second) {
+    final firstName = first['englishName']?.toString() ?? '';
+    final secondName = second['englishName']?.toString() ?? '';
+
+    return firstName.toLowerCase().compareTo(secondName.toLowerCase());
+  });
+
+  return output;
+}
+
 Future<void> main() async {
   const baseUrl = 'https://json.tarkov.dev/regular';
 
@@ -105,6 +170,21 @@ Future<void> main() async {
     }
 
     final items = rawItems.map((key, value) => MapEntry(key.toString(), value));
+
+    final itemCategories = buildCategoryOutput(
+      itemData['itemCategories'],
+      japanese,
+      english,
+    );
+
+    final handbookCategories = buildCategoryOutput(
+      itemData['handbookCategories'],
+      japanese,
+      english,
+    );
+
+    stdout.writeln('Item categories: ${itemCategories.length}');
+    stdout.writeln('Handbook categories: ${handbookCategories.length}');
 
     stdout.writeln('Processing ${items.length} items...');
 
@@ -172,6 +252,9 @@ Future<void> main() async {
         'name': japaneseName,
         'englishName': englishName,
         'shortName': japaneseShortName,
+        'types': stringList(item['types']),
+        'categories': stringList(item['categories']),
+        'handbookCategories': stringList(item['handbookCategories']),
         'normalizedName': normalizedName,
         'basePrice': integerValue(item['basePrice']),
         'avg24hPrice': item['avg24hPrice'],
@@ -200,6 +283,8 @@ Future<void> main() async {
       'updatedAt': DateTime.now().toUtc().toIso8601String(),
       'source': 'json.tarkov.dev',
       'gameMode': 'regular',
+      'itemCategories': itemCategories,
+      'handbookCategories': handbookCategories,
       'items': outputItems,
     };
 

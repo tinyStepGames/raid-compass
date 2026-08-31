@@ -2,7 +2,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:raid_compass/data/tarkov_api.dart';
+import 'package:raid_compass/features/items/item_category_browser.dart';
 import 'package:raid_compass/models/tarkov_item.dart';
+import 'package:raid_compass/models/tarkov_item_category.dart';
 
 class ItemsPage extends StatefulWidget {
   const ItemsPage({super.key});
@@ -17,15 +19,106 @@ class _ItemsPageState extends State<ItemsPage> {
   final TarkovApi _api = TarkovApi();
 
   List<TarkovItem> _items = const [];
+  List<TarkovItemCategory> _categories = const [];
+  TarkovItemCategory? _selectedCategory;
+
+  bool _isLoadingCategories = true;
+  String? _categoryErrorMessage;
   bool _isLoading = false;
   bool _hasSearched = false;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
     _api.close();
     super.dispose();
+  }
+
+  Future<void> _loadCategories() async {
+    setState(() {
+      _isLoadingCategories = true;
+      _categoryErrorMessage = null;
+    });
+
+    try {
+      final categories = await _api.getHandbookCategories();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _categories = categories;
+      });
+    } on TarkovApiException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _categoryErrorMessage = error.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingCategories = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _selectCategory(TarkovItemCategory category) async {
+    FocusManager.instance.primaryFocus?.unfocus();
+
+    setState(() {
+      _selectedCategory = category;
+      _isLoading = true;
+      _hasSearched = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final items = await _api.getItemsForHandbookCategory(category.id);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _items = items;
+      });
+    } on TarkovApiException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _items = const [];
+        _errorMessage = error.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _showCategories() {
+    setState(() {
+      _selectedCategory = null;
+      _items = const [];
+      _hasSearched = false;
+      _errorMessage = null;
+    });
   }
 
   Future<void> _search() async {
@@ -41,6 +134,7 @@ class _ItemsPageState extends State<ItemsPage> {
     FocusManager.instance.primaryFocus?.unfocus();
 
     setState(() {
+      _selectedCategory = null;
       _isLoading = true;
       _hasSearched = true;
       _errorMessage = null;
@@ -105,6 +199,28 @@ class _ItemsPageState extends State<ItemsPage> {
             ),
           ),
         ),
+        if (_selectedCategory case final category?)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            child: Row(
+              children: [
+                IconButton(
+                  tooltip: 'カテゴリ一覧へ戻る',
+                  onPressed: _showCategories,
+                  icon: const Icon(Icons.arrow_back),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    '${category.displayName}（${category.itemCount}件）',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+          ),
         Expanded(child: _buildBody()),
       ],
     );
@@ -132,7 +248,18 @@ class _ItemsPageState extends State<ItemsPage> {
     }
 
     if (!_hasSearched) {
-      return const _InitialState();
+      if (_isLoadingCategories) {
+        return const Center(child: CircularProgressIndicator());
+      }
+
+      if (_categoryErrorMessage case final message?) {
+        return _ErrorState(message: message, onRetry: _loadCategories);
+      }
+
+      return ItemCategoryBrowser(
+        categories: _categories,
+        onSelected: _selectCategory,
+      );
     }
 
     if (_items.isEmpty) {
@@ -633,37 +760,6 @@ class _DetailRow extends StatelessWidget {
           ),
           Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
         ],
-      ),
-    );
-  }
-}
-
-class _InitialState extends StatelessWidget {
-  const _InitialState();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.manage_search, size: 64, color: Color(0xFFB7A56A)),
-            SizedBox(height: 16),
-            Text(
-              'アイテムを検索',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-            ),
-            SizedBox(height: 8),
-            Text(
-              '日本語名または英語名を入力すると、'
-              '価格と最適な売却先を確認できます。',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFFA8A598), height: 1.5),
-            ),
-          ],
-        ),
       ),
     );
   }

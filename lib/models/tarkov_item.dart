@@ -5,6 +5,9 @@ class TarkovItem {
     required this.englishName,
     required this.shortName,
     required this.normalizedName,
+    this.types = const [],
+    this.categoryIds = const [],
+    this.handbookCategoryIds = const [],
     required this.basePrice,
     required this.width,
     required this.height,
@@ -21,6 +24,9 @@ class TarkovItem {
   final String englishName;
   final String shortName;
   final String normalizedName;
+  final List<String> types;
+  final List<String> categoryIds;
+  final List<String> handbookCategoryIds;
   final int basePrice;
   final int width;
   final int height;
@@ -91,6 +97,9 @@ class TarkovItem {
       englishName: json['englishName'] as String? ?? '',
       shortName: json['shortName'] as String? ?? '',
       normalizedName: json['normalizedName'] as String? ?? '',
+      types: _toStringList(json['types']),
+      categoryIds: _toStringList(json['categories']),
+      handbookCategoryIds: _toStringList(json['handbookCategories']),
       basePrice: _toInt(json['basePrice']) ?? 0,
       width: _toInt(json['width']) ?? 1,
       height: _toInt(json['height']) ?? 1,
@@ -180,6 +189,17 @@ Set<String> _createSearchTerms(String query) {
 
 String _normalizeSearchText(String value) {
   return value.trim().toLowerCase().replaceAll(RegExp(r'[\s　_\-/・]+'), '');
+}
+
+List<String> _toStringList(Object? value) {
+  if (value is! List) {
+    return const [];
+  }
+
+  return value
+      .map((entry) => entry.toString())
+      .where((entry) => entry.isNotEmpty)
+      .toList(growable: false);
 }
 
 String? _nullableString(Object? value) {
