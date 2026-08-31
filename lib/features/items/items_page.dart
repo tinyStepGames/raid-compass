@@ -305,11 +305,38 @@ class _ItemsPageState extends State<ItemsPage> {
         separatorBuilder: (_, _) => const SizedBox(height: 10),
         itemBuilder: (context, index) {
           final item = _items[index];
+          final category = _categoryForItem(item);
 
-          return _ItemCard(item: item, onTap: () => _showDetails(item));
+          return _ItemCard(
+            item: item,
+            category: category,
+            onTap: () => _showDetails(item),
+          );
         },
       ),
     );
+  }
+
+  TarkovItemCategory? _categoryForItem(TarkovItem item) {
+    final matchingCategories = _categories
+        .where((category) => item.handbookCategoryIds.contains(category.id))
+        .toList();
+
+    if (matchingCategories.isEmpty) {
+      return null;
+    }
+
+    matchingCategories.sort((first, second) {
+      final countComparison = first.itemCount.compareTo(second.itemCount);
+
+      if (countComparison != 0) {
+        return countComparison;
+      }
+
+      return first.displayName.compareTo(second.displayName);
+    });
+
+    return matchingCategories.first;
   }
 
   Future<void> _manageAliases(TarkovItem item) async {
@@ -586,10 +613,11 @@ class _AliasManagerDialogState extends State<_AliasManagerDialog> {
 }
 
 class _ItemCard extends StatelessWidget {
-  const _ItemCard({required this.item, required this.onTap});
+  const _ItemCard({required this.item, required this.onTap, this.category});
 
   final TarkovItem item;
   final VoidCallback onTap;
+  final TarkovItemCategory? category;
 
   @override
   Widget build(BuildContext context) {
@@ -635,6 +663,10 @@ class _ItemCard extends StatelessWidget {
                         fontSize: 12,
                       ),
                     ),
+                    if (category case final itemCategory?) ...[
+                      const SizedBox(height: 7),
+                      _ItemCategoryBadge(category: itemCategory),
+                    ],
                     const SizedBox(height: 9),
                     Wrap(
                       spacing: 12,
@@ -668,6 +700,91 @@ class _ItemCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ItemCategoryBadge extends StatelessWidget {
+  const _ItemCategoryBadge({required this.category});
+
+  final TarkovItemCategory category;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFF242A22),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF3B4437)),
+      ),
+      child: Row(
+        children: [
+          _ItemCategoryBadgeImage(imageUrl: category.imageLink, size: 18),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              category.displayName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFFC7B778),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ItemCategoryBadgeImage extends StatelessWidget {
+  const _ItemCategoryBadgeImage({required this.imageUrl, required this.size});
+
+  final String? imageUrl;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = imageUrl;
+
+    if (url == null || url.isEmpty) {
+      return _fallback();
+    }
+
+    if (kIsWeb) {
+      return SizedBox.square(
+        dimension: size,
+        child: Image.network(
+          url,
+          fit: BoxFit.contain,
+          webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+          errorBuilder: (_, _, _) => _fallback(),
+        ),
+      );
+    }
+
+    return SizedBox.square(
+      dimension: size,
+      child: CachedNetworkImage(
+        imageUrl: url,
+        fit: BoxFit.contain,
+        placeholder: (_, _) => const SizedBox.shrink(),
+        errorWidget: (_, _, _) => _fallback(),
+      ),
+    );
+  }
+
+  Widget _fallback() {
+    return SizedBox.square(
+      dimension: size,
+      child: const Icon(
+        Icons.category_outlined,
+        size: 16,
+        color: Color(0xFFC7B778),
       ),
     );
   }
