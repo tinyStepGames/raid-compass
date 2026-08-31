@@ -6,6 +6,17 @@ import 'package:raid_compass/features/items/item_category_browser.dart';
 import 'package:raid_compass/models/tarkov_item.dart';
 import 'package:raid_compass/models/tarkov_item_category.dart';
 
+enum _ItemSortOrder {
+  name('名前順'),
+  priceHigh('平均価格が高い順'),
+  priceLow('平均価格が安い順'),
+  pricePerSlotHigh('1マス価格が高い順');
+
+  const _ItemSortOrder(this.label);
+
+  final String label;
+}
+
 class ItemsPage extends StatefulWidget {
   const ItemsPage({super.key});
 
@@ -28,6 +39,7 @@ class _ItemsPageState extends State<ItemsPage> {
   bool _isLoading = false;
   bool _hasSearched = false;
   String? _errorMessage;
+  _ItemSortOrder _sortOrder = _ItemSortOrder.name;
 
   @override
   void initState() {
@@ -250,6 +262,73 @@ class _ItemsPageState extends State<ItemsPage> {
               ],
             ),
           ),
+        if (_hasSearched && !_isLoading && _items.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            child: Row(
+              children: [
+                Text(
+                  '${_items.length}件',
+                  style: const TextStyle(
+                    color: Color(0xFFA8A598),
+                    fontSize: 12,
+                  ),
+                ),
+                const Spacer(),
+                PopupMenuButton<_ItemSortOrder>(
+                  initialValue: _sortOrder,
+                  tooltip: '並べ替え',
+                  onSelected: (value) {
+                    setState(() {
+                      _sortOrder = value;
+                    });
+                  },
+                  itemBuilder: (context) {
+                    return [
+                      for (final value in _ItemSortOrder.values)
+                        PopupMenuItem<_ItemSortOrder>(
+                          value: value,
+                          child: Row(
+                            children: [
+                              if (value == _sortOrder)
+                                const Icon(Icons.check, size: 18)
+                              else
+                                const SizedBox(width: 18),
+                              const SizedBox(width: 8),
+                              Text(value.label),
+                            ],
+                          ),
+                        ),
+                    ];
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1B201A),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFF30352D)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.sort, size: 18),
+                        const SizedBox(width: 7),
+                        Text(
+                          _sortOrder.label,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.arrow_drop_down, size: 18),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         Expanded(child: _buildBody()),
       ],
     );
@@ -297,14 +376,16 @@ class _ItemsPageState extends State<ItemsPage> {
       return const _EmptyState();
     }
 
+    final sortedItems = _sortedItems();
+
     return RefreshIndicator(
       onRefresh: _search,
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-        itemCount: _items.length,
+        itemCount: sortedItems.length,
         separatorBuilder: (_, _) => const SizedBox(height: 10),
         itemBuilder: (context, index) {
-          final item = _items[index];
+          final item = sortedItems[index];
           final category = _categoryForItem(item);
 
           return _ItemCard(
@@ -315,6 +396,86 @@ class _ItemsPageState extends State<ItemsPage> {
         },
       ),
     );
+  }
+
+  List<TarkovItem> _sortedItems() {
+    final sortedItems = List<TarkovItem>.of(_items);
+
+    int compareNames(TarkovItem first, TarkovItem second) {
+      return first.name.toLowerCase().compareTo(second.name.toLowerCase());
+    }
+
+    int comparePrices(
+      TarkovItem first,
+      TarkovItem second, {
+      required int? Function(TarkovItem item) priceOf,
+      required bool descending,
+    }) {
+      final firstPrice = priceOf(first);
+      final secondPrice = priceOf(second);
+
+      final firstHasPrice = firstPrice != null && firstPrice > 0;
+      final secondHasPrice = secondPrice != null && secondPrice > 0;
+
+      if (!firstHasPrice && !secondHasPrice) {
+        return compareNames(first, second);
+      }
+
+      if (!firstHasPrice) {
+        return 1;
+      }
+
+      if (!secondHasPrice) {
+        return -1;
+      }
+
+      final comparison = descending
+          ? secondPrice.compareTo(firstPrice)
+          : firstPrice.compareTo(secondPrice);
+
+      if (comparison != 0) {
+        return comparison;
+      }
+
+      return compareNames(first, second);
+    }
+
+    switch (_sortOrder) {
+      case _ItemSortOrder.name:
+        sortedItems.sort(compareNames);
+
+      case _ItemSortOrder.priceHigh:
+        sortedItems.sort(
+          (first, second) => comparePrices(
+            first,
+            second,
+            priceOf: (item) => item.average24hPrice,
+            descending: true,
+          ),
+        );
+
+      case _ItemSortOrder.priceLow:
+        sortedItems.sort(
+          (first, second) => comparePrices(
+            first,
+            second,
+            priceOf: (item) => item.average24hPrice,
+            descending: false,
+          ),
+        );
+
+      case _ItemSortOrder.pricePerSlotHigh:
+        sortedItems.sort(
+          (first, second) => comparePrices(
+            first,
+            second,
+            priceOf: (item) => item.pricePerSlot,
+            descending: true,
+          ),
+        );
+    }
+
+    return sortedItems;
   }
 
   TarkovItemCategory? _categoryForItem(TarkovItem item) {
