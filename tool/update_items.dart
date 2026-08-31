@@ -149,6 +149,55 @@ List<Map<String, dynamic>> buildCategoryOutput(
   return output;
 }
 
+double? decimalValue(Object? value) {
+  return switch (value) {
+    int number => number.toDouble(),
+    double number => number,
+    String text => double.tryParse(text),
+    _ => null,
+  };
+}
+
+Map<String, dynamic>? buildAmmoProperties(Object? source) {
+  if (source is! Map) {
+    return null;
+  }
+
+  final properties = source.map(
+    (key, value) => MapEntry(key.toString(), value),
+  );
+
+  if (properties['propertiesType']?.toString() != 'ItemPropertiesAmmo') {
+    return null;
+  }
+
+  return {
+    'caliber': properties['caliber']?.toString(),
+    'stackMaxSize': integerValue(properties['stackMaxSize']),
+    'tracer': properties['tracer'] == true,
+    'tracerColor': properties['tracerColor']?.toString(),
+    'ammoType': properties['ammoType']?.toString(),
+    'projectileCount': integerValue(properties['projectileCount'], 1),
+    'damage': integerValue(properties['damage']),
+    'armorDamage': integerValue(properties['armorDamage']),
+    'fragmentationChance': decimalValue(properties['fragmentationChance']),
+    'ricochetChance': decimalValue(properties['ricochetChance']),
+    'penetrationChance': decimalValue(properties['penetrationChance']),
+    'penetrationPower': integerValue(properties['penetrationPower']),
+    'penetrationPowerDeviation': decimalValue(
+      properties['penetrationPowerDeviation'],
+    ),
+    'accuracyModifier': decimalValue(properties['accuracyModifier']),
+    'recoilModifier': decimalValue(properties['recoilModifier']),
+    'initialSpeed': decimalValue(properties['initialSpeed']),
+    'lightBleedModifier': decimalValue(properties['lightBleedModifier']),
+    'heavyBleedModifier': decimalValue(properties['heavyBleedModifier']),
+    'durabilityBurnFactor': decimalValue(properties['durabilityBurnFactor']),
+    'heatFactor': decimalValue(properties['heatFactor']),
+    'staminaBurnPerDamage': decimalValue(properties['staminaBurnPerDamage']),
+  };
+}
+
 Future<void> main() async {
   const baseUrl = 'https://json.tarkov.dev/regular';
 
@@ -264,6 +313,7 @@ Future<void> main() async {
         'gridImageLink': item['gridImageLink']?.toString(),
         'image512pxLink': item['image512pxLink']?.toString(),
         'wikiLink': item['wikiLink']?.toString(),
+        'ammo': buildAmmoProperties(item['properties']),
         'sellFor': sellFor,
       });
 
