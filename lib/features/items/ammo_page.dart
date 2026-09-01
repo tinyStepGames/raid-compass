@@ -6,7 +6,7 @@ import 'package:raid_compass/models/tarkov_item.dart';
 
 const String _allCalibers = '__all__';
 
-const String _titleText = '\u5f3e\u85ac';
+const String _titleText = '\u5b9f\u5305\u6027\u80fd\u8868';
 const String _nameSortText = '\u540d\u524d\u9806';
 const String _penetrationSortText = '\u8cab\u901a\u529b\u9806';
 const String _damageSortText = '\u30c0\u30e1\u30fc\u30b8\u9806';
@@ -37,9 +37,6 @@ const String _damageText = '\u30c0\u30e1\u30fc\u30b8';
 const String _penetrationText = '\u8cab\u901a';
 const String _armorText = '\u30a2\u30fc\u30de\u30fc';
 const String _speedText = '\u5f3e\u901f';
-const String _projectileText = '\u5f3e\u4f53';
-const String _tracerText = '\u66f3\u5149\u5f3e';
-const String _yesText = '\u3042\u308a';
 const String _countSuffix = '\u4ef6';
 
 enum _AmmoSortOrder {
@@ -55,9 +52,15 @@ enum _AmmoSortOrder {
 }
 
 class AmmoPage extends StatefulWidget {
-  const AmmoPage({required this.api, this.onFavoritesChanged, super.key});
+  const AmmoPage({
+    required this.api,
+    this.initialCaliber,
+    this.onFavoritesChanged,
+    super.key,
+  });
 
   final TarkovApi api;
+  final String? initialCaliber;
   final ValueChanged<Set<String>>? onFavoritesChanged;
 
   @override
@@ -68,6 +71,7 @@ class _AmmoPageState extends State<AmmoPage> {
   TarkovApi get _api => widget.api;
 
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _horizontalScrollController = ScrollController();
 
   List<TarkovItem> _items = const [];
   Set<String> _favoriteItemIds = <String>{};
@@ -80,12 +84,14 @@ class _AmmoPageState extends State<AmmoPage> {
   @override
   void initState() {
     super.initState();
+    _selectedCaliber = widget.initialCaliber ?? _allCalibers;
     _loadAmmo();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _horizontalScrollController.dispose();
     super.dispose();
   }
 
@@ -279,10 +285,11 @@ class _AmmoPageState extends State<AmmoPage> {
                       },
                       itemBuilder: (context) {
                         return [
-                          const PopupMenuItem<String>(
-                            value: _allCalibers,
-                            child: Text(_allCalibersText),
-                          ),
+                          if (widget.initialCaliber == null)
+                            const PopupMenuItem<String>(
+                              value: _allCalibers,
+                              child: Text(_allCalibersText),
+                            ),
                           ..._calibers.map(
                             (caliber) => PopupMenuItem<String>(
                               value: caliber,
@@ -386,17 +393,50 @@ class _AmmoPageState extends State<AmmoPage> {
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-      itemCount: visibleItems.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        final item = visibleItems[index];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const minimumTableWidth = 836.0;
+        final tableWidth = constraints.maxWidth > minimumTableWidth
+            ? constraints.maxWidth
+            : minimumTableWidth;
 
-        return _AmmoCard(
-          item: item,
-          isFavorite: _favoriteItemIds.contains(item.id),
-          onFavoritePressed: () => _toggleFavorite(item),
+        return Scrollbar(
+          controller: _horizontalScrollController,
+          thumbVisibility: true,
+          trackVisibility: true,
+          interactive: true,
+          scrollbarOrientation: ScrollbarOrientation.bottom,
+          child: SingleChildScrollView(
+            controller: _horizontalScrollController,
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: tableWidth,
+              height: constraints.maxHeight,
+              child: Column(
+                children: [
+                  const _AmmoTableHeader(),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      itemCount: visibleItems.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final item = visibleItems[index];
+
+                        return _AmmoTableRow(
+                          item: item,
+                          isFavorite: _favoriteItemIds.contains(item.id),
+                          onFavoritePressed: () => _toggleFavorite(item),
+                          alternate: index.isOdd,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         );
       },
     );
@@ -438,33 +478,89 @@ class _ControlButton extends StatelessWidget {
   }
 }
 
-class _AmmoCard extends StatelessWidget {
-  const _AmmoCard({
+class _AmmoTableHeader extends StatelessWidget {
+  const _AmmoTableHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 44,
+      color: const Color(0xFF222821),
+      child: const Row(
+        children: [
+          SizedBox(width: 64),
+          _AmmoHeaderCell(width: 260, label: '\u5f3e\u85ac\u540d'),
+          _AmmoHeaderCell(width: 160, label: '\u53e3\u5f84'),
+          _AmmoHeaderCell(width: 75, label: _damageText),
+          _AmmoHeaderCell(width: 75, label: _penetrationText),
+          _AmmoHeaderCell(width: 75, label: _armorText),
+          _AmmoHeaderCell(width: 75, label: _speedText),
+          SizedBox(width: 52),
+        ],
+      ),
+    );
+  }
+}
+
+class _AmmoHeaderCell extends StatelessWidget {
+  const _AmmoHeaderCell({required this.width, required this.label});
+
+  final double width;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: Color(0xFFC7B778),
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AmmoTableRow extends StatelessWidget {
+  const _AmmoTableRow({
     required this.item,
     required this.isFavorite,
     required this.onFavoritePressed,
+    required this.alternate,
   });
 
   final TarkovItem item;
   final bool isFavorite;
   final VoidCallback onFavoritePressed;
+  final bool alternate;
 
   @override
   Widget build(BuildContext context) {
     final ammo = item.ammo!;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      color: const Color(0xFF151A16),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 10, 6, 10),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _AmmoImage(item: item),
-            const SizedBox(width: 12),
-            Expanded(
+    return Container(
+      constraints: const BoxConstraints(minHeight: 76),
+      color: alternate ? const Color(0xFF121713) : const Color(0xFF151A16),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 64,
+            child: Center(child: _AmmoImage(item: item)),
+          ),
+          SizedBox(
+            width: 260,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
@@ -473,64 +569,43 @@ class _AmmoCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontWeight: FontWeight.w800,
-                      fontSize: 15,
+                      fontSize: 13,
                     ),
                   ),
                   if (item.englishName.isNotEmpty &&
                       item.englishName != item.name) ...[
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Text(
                       item.englishName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Color(0xFFA8A598),
-                        fontSize: 11,
+                        fontSize: 10,
                       ),
                     ),
                   ],
-                  const SizedBox(height: 5),
-                  Text(
-                    _displayCaliber(ammo.caliber),
-                    style: const TextStyle(
-                      color: Color(0xFFC7B778),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      _AmmoMetric(label: _damageText, value: '${ammo.damage}'),
-                      _AmmoMetric(
-                        label: _penetrationText,
-                        value: '${ammo.penetrationPower}',
-                      ),
-                      _AmmoMetric(
-                        label: _armorText,
-                        value: '${ammo.armorDamage}%',
-                      ),
-                      _AmmoMetric(
-                        label: _speedText,
-                        value: ammo.initialSpeed == null
-                            ? '-'
-                            : '${ammo.initialSpeed!.round()} m/s',
-                      ),
-                      if (ammo.projectileCount > 1)
-                        _AmmoMetric(
-                          label: _projectileText,
-                          value: '${ammo.projectileCount}',
-                        ),
-                      if (ammo.tracer)
-                        const _AmmoMetric(label: _tracerText, value: _yesText),
-                    ],
-                  ),
                 ],
               ),
             ),
-            IconButton(
+          ),
+          _AmmoValueCell(
+            width: 160,
+            value: _displayCaliber(ammo.caliber),
+            highlight: true,
+          ),
+          _AmmoValueCell(width: 75, value: '${ammo.damage}'),
+          _AmmoValueCell(width: 75, value: '${ammo.penetrationPower}'),
+          _AmmoValueCell(width: 75, value: '${ammo.armorDamage}%'),
+          _AmmoValueCell(
+            width: 75,
+            value: ammo.initialSpeed == null
+                ? '-'
+                : '${ammo.initialSpeed!.round()}',
+          ),
+          SizedBox(
+            width: 52,
+            child: IconButton(
               tooltip: isFavorite ? _removeFavoriteText : _addFavoriteText,
               onPressed: onFavoritePressed,
               icon: Icon(
@@ -540,7 +615,41 @@ class _AmmoCard extends StatelessWidget {
                     : const Color(0xFFA8A598),
               ),
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AmmoValueCell extends StatelessWidget {
+  const _AmmoValueCell({
+    required this.width,
+    required this.value,
+    this.highlight = false,
+  });
+
+  final double width;
+  final String value;
+  final bool highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: Text(
+          value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: highlight
+                ? const Color(0xFFC7B778)
+                : const Color(0xFFE5E1D6),
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );
@@ -603,8 +712,8 @@ class _AmmoImageState extends State<_AmmoImage> {
     final urls = _imageUrls;
 
     return Container(
-      width: 76,
-      height: 76,
+      width: 52,
+      height: 52,
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         color: const Color(0xFF0C0F0D),
@@ -664,26 +773,8 @@ class _AmmoImageState extends State<_AmmoImage> {
   }
 }
 
-class _AmmoMetric extends StatelessWidget {
-  const _AmmoMetric({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
-      decoration: BoxDecoration(
-        color: const Color(0xFF222821),
-        borderRadius: BorderRadius.circular(7),
-      ),
-      child: Text(
-        '$label $value',
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-      ),
-    );
-  }
+String ammoCaliberDisplayName(String? caliber) {
+  return _displayCaliber(caliber);
 }
 
 String _displayCaliber(String? caliber) {

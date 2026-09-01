@@ -181,7 +181,6 @@ List<ItemCategoryGroup> buildItemCategoryGroups(
     final groupId = _categoryGroupIds[category.normalizedName] ?? 'other';
     grouped[groupId]!.add(category);
   }
-
   final result = <ItemCategoryGroup>[];
 
   for (final id in _groupOrder) {
@@ -371,7 +370,11 @@ class _CategoryCard extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _CategoryImage(imageUrl: category.imageLink, size: 58),
+              _CategoryImage(
+                imageUrl: category.imageLink,
+                size: 58,
+                fallbackIcon: Icons.category_outlined,
+              ),
               const SizedBox(height: 8),
               Text(
                 category.displayName,
@@ -397,10 +400,15 @@ class _CategoryCard extends StatelessWidget {
 }
 
 class _CategoryImage extends StatelessWidget {
-  const _CategoryImage({required this.imageUrl, required this.size});
+  const _CategoryImage({
+    required this.imageUrl,
+    required this.size,
+    required this.fallbackIcon,
+  });
 
   final String? imageUrl;
   final double size;
+  final IconData fallbackIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -444,7 +452,7 @@ class _CategoryImage extends StatelessWidget {
     return SizedBox(
       width: size,
       height: size,
-      child: const Icon(Icons.category_outlined, color: Color(0xFFA8A598)),
+      child: Icon(fallbackIcon, color: const Color(0xFFA8A598)),
     );
   }
 }

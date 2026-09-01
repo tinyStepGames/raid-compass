@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:raid_compass/features/items/ammo_caliber_page.dart';
 import 'package:raid_compass/features/items/items_page.dart';
 
 void main() {
@@ -96,11 +97,8 @@ class _RaidCompassShellState extends State<RaidCompassShell> {
         title: 'タスク管理',
         description: 'タスクの進行状況と必要アイテムを管理します。',
       ),
-      const FeaturePage(
-        icon: Icons.adjust_outlined,
-        title: '弾薬データ',
-        description: '口径ごとのダメージと貫通力を比較します。',
-      ),
+      const AmmoCaliberPage(),
+
       const SettingsPage(),
     ];
 
