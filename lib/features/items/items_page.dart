@@ -10,7 +10,9 @@ enum _ItemSortOrder {
   name('名前順'),
   priceHigh('平均価格が高い順'),
   priceLow('平均価格が安い順'),
-  pricePerSlotHigh('1マス価格が高い順');
+  pricePerSlotHigh('1マス価格が高い順'),
+  traderSellHigh('トレーダー売却額が高い順'),
+  traderSellLow('トレーダー売却額が安い順');
 
   const _ItemSortOrder(this.label);
 
@@ -210,6 +212,7 @@ class _ItemsPageState extends State<ItemsPage> {
     setState(() {
       _showingFavorites = false;
       _selectedCategory = category;
+      _sortOrder = _ItemSortOrder.name;
       _isLoading = true;
       _hasSearched = true;
       _errorMessage = null;
@@ -438,7 +441,21 @@ class _ItemsPageState extends State<ItemsPage> {
                   },
                   itemBuilder: (context) {
                     return [
-                      for (final value in _ItemSortOrder.values)
+                      for (final value
+                          in (_selectedCategory != null &&
+                                  _items.isNotEmpty &&
+                                  _items.every((item) => item.isAmmo)
+                              ? const [
+                                  _ItemSortOrder.name,
+                                  _ItemSortOrder.traderSellHigh,
+                                  _ItemSortOrder.traderSellLow,
+                                ]
+                              : const [
+                                  _ItemSortOrder.name,
+                                  _ItemSortOrder.priceHigh,
+                                  _ItemSortOrder.priceLow,
+                                  _ItemSortOrder.pricePerSlotHigh,
+                                ]))
                         PopupMenuItem<_ItemSortOrder>(
                           value: value,
                           child: Row(
@@ -663,6 +680,26 @@ class _ItemsPageState extends State<ItemsPage> {
             first,
             second,
             priceOf: (item) => item.average24hPrice,
+            descending: false,
+          ),
+        );
+
+      case _ItemSortOrder.traderSellHigh:
+        sortedItems.sort(
+          (first, second) => comparePrices(
+            first,
+            second,
+            priceOf: (item) => item.bestSellOffer?.priceRoubles,
+            descending: true,
+          ),
+        );
+
+      case _ItemSortOrder.traderSellLow:
+        sortedItems.sort(
+          (first, second) => comparePrices(
+            first,
+            second,
+            priceOf: (item) => item.bestSellOffer?.priceRoubles,
             descending: false,
           ),
         );

@@ -72,6 +72,7 @@ class _AmmoPageState extends State<AmmoPage> {
 
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _horizontalScrollController = ScrollController();
+  final ScrollController _verticalScrollController = ScrollController();
 
   List<TarkovItem> _items = const [];
   Set<String> _favoriteItemIds = <String>{};
@@ -92,6 +93,7 @@ class _AmmoPageState extends State<AmmoPage> {
   void dispose() {
     _searchController.dispose();
     _horizontalScrollController.dispose();
+    _verticalScrollController.dispose();
     super.dispose();
   }
 
@@ -205,6 +207,22 @@ class _AmmoPageState extends State<AmmoPage> {
     return visibleItems;
   }
 
+  void _selectSortOrder(_AmmoSortOrder sortOrder) {
+    if (_sortOrder != sortOrder) {
+      setState(() {
+        _sortOrder = sortOrder;
+      });
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_verticalScrollController.hasClients) {
+        return;
+      }
+
+      _verticalScrollController.jumpTo(0);
+    });
+  }
+
   Future<void> _toggleFavorite(TarkovItem item) async {
     final shouldBeFavorite = !_favoriteItemIds.contains(item.id);
 
@@ -309,19 +327,18 @@ class _AmmoPageState extends State<AmmoPage> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: PopupMenuButton<_AmmoSortOrder>(
+                      initialValue: _sortOrder,
                       tooltip: _sortText,
-                      onSelected: (sortOrder) {
-                        setState(() {
-                          _sortOrder = sortOrder;
-                        });
-                      },
+                      onSelected: _selectSortOrder,
                       itemBuilder: (context) {
                         return _AmmoSortOrder.values
                             .map(
-                              (sortOrder) => PopupMenuItem<_AmmoSortOrder>(
-                                value: sortOrder,
-                                child: Text(sortOrder.label),
-                              ),
+                              (sortOrder) =>
+                                  CheckedPopupMenuItem<_AmmoSortOrder>(
+                                    value: sortOrder,
+                                    checked: sortOrder == _sortOrder,
+                                    child: Text(sortOrder.label),
+                                  ),
                             )
                             .toList(growable: false);
                       },
@@ -414,10 +431,14 @@ class _AmmoPageState extends State<AmmoPage> {
               height: constraints.maxHeight,
               child: Column(
                 children: [
-                  const _AmmoTableHeader(),
+                  _AmmoTableHeader(
+                    sortOrder: _sortOrder,
+                    onSortChanged: _selectSortOrder,
+                  ),
                   const Divider(height: 1),
                   Expanded(
                     child: ListView.separated(
+                      controller: _verticalScrollController,
                       padding: const EdgeInsets.only(bottom: 24),
                       itemCount: visibleItems.length,
                       separatorBuilder: (_, _) => const Divider(height: 1),
@@ -479,23 +500,59 @@ class _ControlButton extends StatelessWidget {
 }
 
 class _AmmoTableHeader extends StatelessWidget {
-  const _AmmoTableHeader();
+  const _AmmoTableHeader({
+    required this.sortOrder,
+    required this.onSortChanged,
+  });
+
+  final _AmmoSortOrder sortOrder;
+  final ValueChanged<_AmmoSortOrder> onSortChanged;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: 44,
       color: const Color(0xFF222821),
-      child: const Row(
+      child: Row(
         children: [
-          SizedBox(width: 64),
-          _AmmoHeaderCell(width: 260, label: '\u5f3e\u85ac\u540d'),
-          _AmmoHeaderCell(width: 160, label: '\u53e3\u5f84'),
-          _AmmoHeaderCell(width: 75, label: _damageText),
-          _AmmoHeaderCell(width: 75, label: _penetrationText),
-          _AmmoHeaderCell(width: 75, label: _armorText),
-          _AmmoHeaderCell(width: 75, label: _speedText),
-          SizedBox(width: 52),
+          const SizedBox(width: 64),
+          _AmmoHeaderCell(
+            width: 260,
+            label: '\u5f3e\u85ac\u540d',
+            sortOrder: _AmmoSortOrder.name,
+            currentSortOrder: sortOrder,
+            onSortChanged: onSortChanged,
+          ),
+          const _AmmoHeaderCell(width: 160, label: '\u53e3\u5f84'),
+          _AmmoHeaderCell(
+            width: 75,
+            label: _damageText,
+            sortOrder: _AmmoSortOrder.damageHigh,
+            currentSortOrder: sortOrder,
+            onSortChanged: onSortChanged,
+          ),
+          _AmmoHeaderCell(
+            width: 75,
+            label: _penetrationText,
+            sortOrder: _AmmoSortOrder.penetrationHigh,
+            currentSortOrder: sortOrder,
+            onSortChanged: onSortChanged,
+          ),
+          _AmmoHeaderCell(
+            width: 75,
+            label: _armorText,
+            sortOrder: _AmmoSortOrder.armorDamageHigh,
+            currentSortOrder: sortOrder,
+            onSortChanged: onSortChanged,
+          ),
+          _AmmoHeaderCell(
+            width: 75,
+            label: _speedText,
+            sortOrder: _AmmoSortOrder.speedHigh,
+            currentSortOrder: sortOrder,
+            onSortChanged: onSortChanged,
+          ),
+          const SizedBox(width: 52),
         ],
       ),
     );
@@ -503,26 +560,74 @@ class _AmmoTableHeader extends StatelessWidget {
 }
 
 class _AmmoHeaderCell extends StatelessWidget {
-  const _AmmoHeaderCell({required this.width, required this.label});
+  const _AmmoHeaderCell({
+    required this.width,
+    required this.label,
+    this.sortOrder,
+    this.currentSortOrder,
+    this.onSortChanged,
+  });
 
   final double width;
   final String label;
+  final _AmmoSortOrder? sortOrder;
+  final _AmmoSortOrder? currentSortOrder;
+  final ValueChanged<_AmmoSortOrder>? onSortChanged;
 
   @override
   Widget build(BuildContext context) {
+    final selected =
+        sortOrder != null &&
+        currentSortOrder != null &&
+        sortOrder == currentSortOrder;
+
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: selected
+                    ? const Color(0xFFE8D58A)
+                    : const Color(0xFFC7B778),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          if (selected) ...[
+            const SizedBox(width: 2),
+            Icon(
+              sortOrder == _AmmoSortOrder.name
+                  ? Icons.arrow_upward
+                  : Icons.arrow_downward,
+              size: 14,
+              color: const Color(0xFFE8D58A),
+            ),
+          ],
+        ],
+      ),
+    );
+
+    final targetSortOrder = sortOrder;
+    final callback = onSortChanged;
+
+    if (targetSortOrder == null || callback == null) {
+      return SizedBox(width: width, child: content);
+    }
+
     return SizedBox(
       width: width,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Color(0xFFC7B778),
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-          ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          mouseCursor: SystemMouseCursors.click,
+          onTap: () => callback(targetSortOrder),
+          child: content,
         ),
       ),
     );
